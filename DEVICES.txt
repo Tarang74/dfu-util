@@ -2,11 +2,11 @@ List of supported software and hardware products:
 
 Software user (bootloader, etc)
 -------------------------------
-- Sam7DFU: http://git.osmocom.org/openpcd/
-- U-boot: http://www.denx.de/wiki/U-Boot/
-- Barebox: http://www.barebox.org/
+- Sam7DFU: https://gitea.osmocom.org/sim-card/openpcd/
+- U-boot: https://www.u-boot.org/
+- Barebox: https://www.barebox.org/
 - Leaflabs: https://www.leaflabs.com/maple
-- Blackmagic: https://github.com/blacksphere/blackmagic/wiki
+- Blackmagic: https://black-magic.org/
 
 Products using DFU
 ------------------

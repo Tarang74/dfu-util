@@ -5,7 +5,7 @@
  * USB DFU 1.0 and 1.1 specification.
  *
  * The code was originally intended to interface with a USB device running the
- * "sam7dfu" firmware (see http://www.openpcd.org/) on an AT91SAM7 processor.
+ * "sam7dfu" firmware (from the OpenPCD.org project) on an AT91SAM7 processor.
  *
  * Copyright 2007-2008 Harald Welte <laforge@gnumonks.org>
  * Copyright 2013 Hans Petter Selasky <hps@bitfrost.no>

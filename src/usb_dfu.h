@@ -5,8 +5,8 @@
  *
  * Protocol definitions for USB DFU
  *
- * This ought to be compliant to the USB DFU Spec 1.0 as available from
- * http://www.usb.org/developers/devclass_docs/usbdfu10.pdf
+ * This ought to be compliant to the USB DFU Spec 1.1 as available from
+ * https://www.usb.org/sites/default/files/DFU_1.1.pdf
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
