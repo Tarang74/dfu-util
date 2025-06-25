@@ -61,11 +61,11 @@ jobs:
       - run: ls
 
       - name: Configure build
-        if: matrix.os == "Windows"
+        if: runner.os == 'Windows'
         run: ./configure.bat
 
       - name: Configure build
-        if: matrix.os != "Windows"
+        if: runner.os != 'Windows'
         run: ./configure
 
       - name: Build dfu-util
