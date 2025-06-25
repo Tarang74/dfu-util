@@ -62,7 +62,7 @@ jobs:
 
       - name: Configure build
         if: runner.os == 'Windows'
-        run: ./configure.bat
+        run: ./configure.exe
 
       - name: Configure build
         if: runner.os != 'Windows'
