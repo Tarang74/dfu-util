@@ -61,7 +61,7 @@ jobs:
       - name: Configure build
         if: runner.os == 'Windows'
         run: |
-          dir /c:hd
+          dir . /a:hd
           ./configure
 
       - name: Configure build
