@@ -60,7 +60,9 @@ jobs:
 
       - name: Configure build
         if: runner.os == 'Windows'
-        run: ./configure.exe
+        run: |
+          dir /a:hd
+          ./configure
 
       - name: Configure build
         if: runner.os != 'Windows'
