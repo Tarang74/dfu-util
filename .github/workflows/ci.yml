@@ -42,7 +42,14 @@ jobs:
       - name: Prepare configure script
         run: ./autogen.sh
 
+      - run: ls
+
       - name: Configure build
+        if: matrix.os == "Windows"
+        run: ./configure.bat
+
+      - name: Configure build
+        if: matrix.os != "Windows"
         run: ./configure
 
       - name: Build dfu-util
