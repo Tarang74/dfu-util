@@ -27,11 +27,11 @@ jobs:
             platform: ubuntu-24.04
             host: "x86_64-unknown-linux-gnu"
 
-          - name: windows-11-arm
-            platform: windows-latest
+          - name: windows-aarch64
+            platform: windows-11-arm
             host: "aarch64-pc-windows-msvc"
-          - name: windows-2025
-            platform: windows-latest
+          - name: windows-x86_64
+            platform: windows-2025
             host: "x86_64-pc-windows-msvc"
 
     runs-on: ${{ matrix.platform }}
@@ -57,8 +57,6 @@ jobs:
 
       - name: Prepare configure script
         run: ./autogen.sh
-
-      - run: ls
 
       - name: Configure build
         if: runner.os == 'Windows'
