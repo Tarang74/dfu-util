@@ -1,0 +1,78 @@
+name: Build and Release
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  publish:
+    permissions:
+      contents: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: macos-aarch64
+            platform: macos-15
+            host: "aarch64-apple-darwin"
+          - name: macos-x86_64
+            platform: macos-13
+            host: "x86_64-apple-darwin"
+
+          - name: ubuntu-aarch64
+            platform: ubuntu-24.04-arm
+            host: "aarch64-unknown-linux-gnu"
+          - name: ubuntu-x86_64
+            platform: ubuntu-24.04
+            host: "x86_64-unknown-linux-gnu"
+
+          - name: windows-11-arm
+            platform: windows-latest
+            host: "aarch64-pc-windows-msvc"
+          - name: windows-2025
+            platform: windows-latest
+            host: "x86_64-pc-windows-msvc"
+
+    runs-on: ${{ matrix.platform }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install dependencies (macOS)
+        if: runner.os == 'macOS'
+        run: brew install autoconf automake libusb
+
+      - name: Install dependencies (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y autoconf automake libtool libusb-1.0-0-dev
+
+      - name: Install dependencies (Windows)
+        if: runner.os == 'Windows'
+        run: |
+          choco install -y make msys2
+          echo "C:\Program Files (x86)\GnuWin32\bin" >> $env:GITHUB_PATH
+
+      - name: Prepare configure script
+        run: ./autogen.sh
+
+      - name: Configure build
+        run: ./configure
+
+      - name: Build dfu-util
+        run: make
+
+      - name: Rename binary
+        shell: bash
+        run: |
+          bin_path="src/dfu-util"
+          [[ "$RUNNER_OS" == "Windows" ]] && bin_path="${bin_path}.exe"
+          cp "$bin_path" "dfu-util-${{ matrix.host }}"
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: dfu-util-${{ matrix.host }}
+          path: dfu-util-${{ matrix.host }}
