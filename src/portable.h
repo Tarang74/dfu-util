@@ -6,7 +6,7 @@
 # define PACKAGE "dfu-util"
 # define PACKAGE_VERSION "0.11-msvc"
 # define PACKAGE_STRING "dfu-util 0.11-msvc"
-# define PACKAGE_BUGREPORT "https://sourceforge.net/p/dfu-util/tickets/"
+# define PACKAGE_BUGREPORT "http://sourceforge.net/p/dfu-util/tickets/"
 # include <io.h>
 /* FIXME if off_t is a typedef it is not a define */
 # ifndef off_t

@@ -2,7 +2,7 @@
 
 # Written by Antonio Galea - 2010/11/18
 # Distributed under Gnu LGPL 3.0
-# see https://www.gnu.org/licenses/lgpl-3.0.txt
+# see http://www.gnu.org/licenses/lgpl-3.0.txt
 
 import sys, struct, zlib, os
 import binascii

@@ -51,7 +51,6 @@ static int dfuse_leave = 0;
 static int dfuse_unprotect = 0;
 static int dfuse_mass_erase = 0;
 static int dfuse_will_reset = 0;
-static int dfuse_fast = 0;
 
 static unsigned int quad2uint(unsigned char *p)
 {
@@ -112,11 +111,6 @@ static void dfuse_parse_options(const char *options)
 		if (!strncmp(options, "will-reset", endword - options)) {
 			dfuse_will_reset = 1;
 			options += 10;
-			continue;
-		}
-		if (!strncmp(options, "fast", endword - options)) {
-			dfuse_fast = 1;
-			options += 4;
 			continue;
 		}
 
@@ -180,54 +174,75 @@ static int dfuse_download(struct dfu_if *dif, const unsigned short length,
 	return status;
 }
 
+
 /* DfuSe only commands */
 /* Leaves the device in dfuDNLOAD-IDLE state */
-static int dfuse_special_command(struct dfu_if *dif, unsigned int address,
-			  enum dfuse_command command)
+static int dfuse_special_command(
+	struct dfu_if *dif, unsigned int address, enum dfuse_command command)
 {
-	const char* dfuse_command_name[] = { "SET_ADDRESS" , "ERASE_PAGE",
-					     "MASS_ERASE", "READ_UNPROTECT"};
+	const char* dfuse_command_name[] = 
+		{ "SET_ADDRESS" , "ERASE_PAGE", "MASS_ERASE", "READ_UNPROTECT"};
 	unsigned char buf[5];
-	int length;
+	int length = 0;
 	int ret;
 	struct dfu_status dst;
-	int firstpoll = 1;
-	int zerotimeouts = 0;
-	int polltimeout = 0;
-	int stalls = 0;
+	
+	char const stm32h7_serial_name[] = "200364500000";
+	
+	unsigned int n_polls = 0;
+	unsigned int const n_polls_max = 4;
+	
+	unsigned int n_stalls = 0;
+	unsigned int const n_stalls_max = 3;
+	
+	unsigned int poll_timeout = 0;
+	unsigned int n_timeouts = 0;
 
-	if (command == ERASE_PAGE) {
-		struct memsegment *segment;
-		int page_size;
+	switch (command)
+	{
+		case ERASE_PAGE:
+			{
+				struct memsegment *segment;
+				int page_size;
 
-		segment = find_segment(dif->mem_layout, address);
-		if (!segment || !(segment->memtype & DFUSE_ERASABLE)) {
-			errx(EX_USAGE, "Page at 0x%08x can not be erased",
-				address);
-		}
-		page_size = segment->pagesize;
-		if (verbose)
-			fprintf(stderr, "Erasing page size %i at address 0x%08x, page "
-			       "starting at 0x%08x\n", page_size, address,
-			       address & ~(page_size - 1));
-		buf[0] = 0x41;	/* Erase command */
-		length = 5;
-		last_erased_page = address & ~(page_size - 1);
-	} else if (command == SET_ADDRESS) {
-		if (verbose > 1)
-			fprintf(stderr, "  Setting address pointer to 0x%08x\n",
-			       address);
-		buf[0] = 0x21;	/* Set Address Pointer command */
-		length = 5;
-	} else if (command == MASS_ERASE) {
-		buf[0] = 0x41;	/* Mass erase command when length = 1 */
-		length = 1;
-	} else if (command == READ_UNPROTECT) {
-		buf[0] = 0x92;
-		length = 1;
-	} else {
-		errx(EX_SOFTWARE, "Non-supported special command %d", command);
+				segment = find_segment(dif->mem_layout, address);
+				if (!segment || !(segment->memtype & DFUSE_ERASABLE)) {
+					errx(EX_USAGE, "Page at 0x%08x can not be erased", address);
+				}
+				page_size = segment->pagesize;
+				if (verbose)
+					fprintf(stderr, "Erasing page size %i at address 0x%08x, page "
+						"starting at 0x%08x\n", page_size, address, address & ~(page_size - 1));
+				buf[0] = 0x41; /* Erase command */
+				length = 5;
+				last_erased_page = address & ~(page_size - 1);
+			}
+			break;
+		case SET_ADDRESS:
+			{
+				if (verbose > 1)
+					fprintf(stderr, "  Setting address pointer to 0x%08x\n", address);
+				buf[0] = 0x21;	/* Set Address Pointer command */
+				length = 5;
+			}
+			break;
+		case MASS_ERASE:
+			{
+				buf[0] = 0x41; /* Mass erase command when length = 1 */
+				length = 1;
+			}
+			break;
+		case READ_UNPROTECT:
+			{
+				buf[0] = 0x92;
+				length = 1;
+			}
+			break;
+		default:
+			errx(EX_SOFTWARE, "Non-supported special command %d", command);
+			break;
 	}
+
 	buf[1] = address & 0xff;
 	buf[2] = (address >> 8) & 0xff;
 	buf[3] = (address >> 16) & 0xff;
@@ -235,70 +250,87 @@ static int dfuse_special_command(struct dfu_if *dif, unsigned int address,
 
 	ret = dfuse_download(dif, length, buf, 0);
 	if (ret < 0) {
-		errx(EX_IOERR,
-		     "Error during special command \"%s\" download: %d (%s)",
-		     dfuse_command_name[command],
-		     ret, libusb_error_name(ret));
+		errx(EX_IOERR, "Error during special command \"%s\" download: %d (%s)",
+			dfuse_command_name[command], ret, libusb_error_name(ret));
 	}
+	
 	do {
+		// If we are looping more than n_polls_max times, take action based on the chosen command
+		// and the property of the DFU device we are connected to
+		if (n_polls > n_polls_max) {
+			// STM32H7 devices with two memory banks seem to get stuck reporting error state when 
+			// erasing blocks in the second bank. This seems not to affect the actual erase, but it
+			// will freeze dfu-util if the state is not cleared.
+			if (command == ERASE_PAGE && dif->vendor == 0x0483 && dif->product == 0xdf11
+				&& 0 == strncmp(dif->serial_name, stm32h7_serial_name, sizeof(stm32h7_serial_name)))
+			{
+				fprintf(stderr, "\n* STM32 DFU ERASE_PAGE fix: clearing the dfu FSM status\n");
+				dfu_clear_status(dif->dev_handle, 0);
+			}
+		}
+
 		ret = dfu_get_status(dif, &dst);
+
 		/* Workaround for some STM32L4 bootloaders that report a too
-		 * short poll timeout and may stall the pipe when we poll.
-		 * This also allows "fast" mode (without poll timeouts) to work
-		 * with many bootloaders. */
-		if (ret == LIBUSB_ERROR_PIPE && polltimeout != 0 && stalls < 3) {
+		 * short poll timeout and may stall the pipe when we poll */
+		if (ret == LIBUSB_ERROR_PIPE && poll_timeout != 0 && n_stalls < n_stalls_max) {
 			dst.bState = DFU_STATE_dfuDNBUSY;
-			stalls++;
+			++n_stalls;
 			if (verbose)
 				fprintf(stderr, "* Device stalled USB pipe, reusing last poll timeout\n");
 		} else if (ret < 0) {
-			errx(EX_IOERR,
-			     "Error during special command \"%s\" get_status: %d (%s)",
-			     dfuse_command_name[command],
-			     ret, libusb_error_name(ret));
+			errx(EX_IOERR, "Error during special command \"%s\" get_status: %d (%s)",
+			     dfuse_command_name[command], ret, libusb_error_name(ret));
 		} else {
-			polltimeout = dst.bwPollTimeout;
+			poll_timeout = dst.bwPollTimeout;
 		}
-		if (firstpoll) {
-			firstpoll = 0;
-			if (dst.bState != DFU_STATE_dfuDNBUSY && dst.bState != DFU_STATE_dfuDNLOAD_IDLE) {
+
+		// This runs only after the first poll
+		if (n_polls == 0) {
+			if (dst.bState != DFU_STATE_dfuDNBUSY) {
 				fprintf(stderr, "DFU state(%u) = %s, status(%u) = %s\n", dst.bState,
-				       dfu_state_to_string(dst.bState), dst.bStatus,
-				       dfu_status_to_string(dst.bStatus));
+					dfu_state_to_string(dst.bState), dst.bStatus,
+					dfu_status_to_string(dst.bStatus));
 				errx(EX_PROTOCOL, "Wrong state after command \"%s\" download",
-				     dfuse_command_name[command]);
+					dfuse_command_name[command]);
 			}
 			/* STM32F405 lies about mass erase timeout */
 			if (command == MASS_ERASE && dst.bwPollTimeout == 100) {
-				polltimeout = 35000; /* Datasheet says up to 32 seconds */
+				poll_timeout = 35000; /* Datasheet says up to 32 seconds */
 				printf("Setting timeout to 35 seconds\n");
 			}
 		}
+
 		/* wait while command is executed */
 		if (verbose > 1)
-			fprintf(stderr, "   Poll timeout %i ms on command %s (state=%s)\n",
-				polltimeout, dfuse_command_name[command],
-				dfu_state_to_string(dst.bState));
-		/* A non-null bwPollTimeout for SET_ADDRESS seems a common bootloader bug */
-		if (command == SET_ADDRESS)
-			polltimeout = 0;
-		if (!dfuse_fast && dst.bState == DFU_STATE_dfuDNBUSY)
-			milli_sleep(polltimeout);
+			fprintf(stderr, "   Sleeping for poll_timeout = %i ms\n", poll_timeout);
+
+		milli_sleep(poll_timeout);
+		
 		if (command == READ_UNPROTECT)
 			return ret;
+		
 		/* Workaround for e.g. Black Magic Probe getting stuck */
 		if (dst.bwPollTimeout == 0) {
-			if (++zerotimeouts == 100)
+			++n_timeouts;
+			if (n_timeouts == 100)
 				errx(EX_IOERR, "Device stuck after special command request");
 		} else {
-			zerotimeouts = 0;
+			n_timeouts = 0;
 		}
-	} while (dst.bState == DFU_STATE_dfuDNBUSY);
+		
+		++n_polls;
+	} while (dst.bState == DFU_STATE_dfuDNBUSY || dst.bState == DFU_STATE_dfuERROR);
 
 	if (dst.bStatus != DFU_STATUS_OK) {
-		errx(EX_IOERR, "%s not correctly executed",
-			dfuse_command_name[command]);
+		if (command == ERASE_PAGE && dif->vendor == 0x0483 && dif->product == 0xdf11
+			&& strncmp(dif->serial_name, stm32h7_serial_name, sizeof(stm32h7_serial_name))) {
+			fprintf(stderr, "ERASE_PAGE ended with an error, but note that this can be spurious with STM32H7 MCUs\n");
+		} else {
+			errx(EX_IOERR, "%s ended with an error", dfuse_command_name[command]);
+		}
 	}
+	
 	return ret;
 }
 
@@ -309,7 +341,6 @@ static int dfuse_dnload_chunk(struct dfu_if *dif, unsigned char *data, int size,
 	int bytes_sent;
 	struct dfu_status dst;
 	int ret;
-	int stalls = 0;
 
 	ret = dfuse_download(dif, size, size ? data : NULL, transaction);
 	if (ret < 0) {
@@ -321,25 +352,13 @@ static int dfuse_dnload_chunk(struct dfu_if *dif, unsigned char *data, int size,
 
 	do {
 		ret = dfu_get_status(dif, &dst);
-		/* needed for some STM32L4 bootloaders and for "fast" mode */
-		if (ret == LIBUSB_ERROR_PIPE && stalls < 3) {
-			dst.bState = DFU_STATE_dfuDNBUSY;
-			stalls++;
-			if (verbose)
-				fprintf(stderr, " * Pipe error, retrying get_status\n");
-			continue;
-		}
 		if (ret < 0) {
 			errx(EX_IOERR,
 			     "Error during download get_status: %d (%s)",
 			     ret, libusb_error_name(ret));
 			return ret;
 		}
-		if (verbose > 1)
-			fprintf(stderr, "   Poll timeout %i ms on download (state=%s)\n",
-				dst.bwPollTimeout, dfu_state_to_string(dst.bState));
-		if (!dfuse_fast && dst.bState == DFU_STATE_dfuDNBUSY)
-			milli_sleep(dst.bwPollTimeout);
+		milli_sleep(dst.bwPollTimeout);
 	} while (dst.bState != DFU_STATE_dfuDNLOAD_IDLE &&
 		 dst.bState != DFU_STATE_dfuERROR &&
 		 dst.bState != DFU_STATE_dfuMANIFEST &&

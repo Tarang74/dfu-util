@@ -197,7 +197,6 @@ static void help(void)
 		"\t\tunprotect\tErase read protected device (requires \"force\")\n"
 		"\t\twill-reset\tExpect device to reset (e.g. option bytes write)\n"
 		"\t\tforce\t\tYou really know what you are doing!\n"
-		"\t\tfast\t\tSpeed up by ignoring poll timeout (experimental)\n"
 		"\t\t<length>\tLength of firmware to upload from device\n"
 		);
 }
@@ -782,8 +781,6 @@ status_again:
 		if (ret < 0 && ret != LIBUSB_ERROR_NOT_FOUND) {
 			warnx("error resetting after download: %s", libusb_error_name(ret));
 			ret = EX_IOERR;
-		} else {
-			ret = EX_OK;
 		}
 	}
 
