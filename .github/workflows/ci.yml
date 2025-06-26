@@ -27,13 +27,6 @@ jobs:
             platform: ubuntu-24.04
             host: "x86_64-unknown-linux-gnu"
 
-          - name: windows-aarch64
-            platform: windows-11-arm
-            host: "aarch64-pc-windows-msvc"
-          - name: windows-x86_64
-            platform: windows-2025
-            host: "x86_64-pc-windows-msvc"
-
     runs-on: ${{ matrix.platform }}
 
     steps:
@@ -49,24 +42,8 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y autoconf automake libtool libusb-1.0-0-dev
 
-      - name: Install dependencies (Windows)
-        if: runner.os == 'Windows'
-        run: |
-          choco install -y make msys2
-          echo "C:\Program Files (x86)\GnuWin32\bin" >> $env:GITHUB_PATH
-
       - name: Prepare configure script
         run: ./autogen.sh
-
-      - name: Configure build
-        if: runner.os == 'Windows'
-        run: |
-          dir . /a:h
-          ./configure
-
-      - name: Configure build
-        if: runner.os != 'Windows'
-        run: ./configure
 
       - name: Build dfu-util
         run: make
@@ -75,7 +52,74 @@ jobs:
         shell: bash
         run: |
           bin_path="src/dfu-util"
-          [[ "$RUNNER_OS" == "Windows" ]] && bin_path="${bin_path}.exe"
+          cp "$bin_path" "dfu-util-${{ matrix.host }}"
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: dfu-util-${{ matrix.host }}
+          path: dfu-util-${{ matrix.host }}
+
+  publish-windows:
+    defaults:
+      run:
+        shell: msys2 {0}
+    permissions:
+      contents: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: windows-aarch64
+            platform: windows-11-arm
+            host: "aarch64-pc-windows-msvc"
+          - name: windows-x86_64
+            platform: windows-2025
+            host: "x86_64-pc-windows-msvc"
+
+    runs-on: ${{ matrix.platform }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install dependencies
+        uses: msys2/setup-msys2@v2
+        with:
+          update: true
+          install: >-
+            base-devel
+            gcc
+            unzip
+            p7zip
+
+      - name: Download libusb
+        run: |
+          mkdir -p /tmp/libusb
+          curl -L -o /tmp/libusb.7z https://github.com/libusb/libusb/releases/download/v1.0.29/libusb-1.0.29.7z
+          7z x /tmp/libusb.7z -o/tmp/libusb
+
+      - name: Build dfu-util
+        run: |
+        	gcc \
+          -I/tmp/include \
+          -L/tmp/MinGW64/dll \
+          -L/tmp/MinGW64/static \
+          -DHAVE_WINDOWS_H \
+          -o dfu-util \
+          main.c \
+          dfu_load.c \
+          dfu_util.c \
+          dfuse.c \
+          dfuse_mem.c \
+          dfu.c \
+          dfu_file.c \
+          quirks.c \
+          -lusb-1.0
+
+      - name: Rename binary
+        shell: bash
+        run: |
+          bin_path="src/dfu-util.exe"
           cp "$bin_path" "dfu-util-${{ matrix.host }}"
 
       - name: Upload artifact
