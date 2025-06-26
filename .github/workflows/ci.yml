@@ -99,22 +99,7 @@ jobs:
           7z x /tmp/libusb.7z -o/tmp/libusb
 
       - name: Build dfu-util
-        run: |
-        	gcc \
-          -I/tmp/include \
-          -L/tmp/MinGW64/dll \
-          -L/tmp/MinGW64/static \
-          -DHAVE_WINDOWS_H \
-          -o dfu-util \
-          main.c \
-          dfu_load.c \
-          dfu_util.c \
-          dfuse.c \
-          dfuse_mem.c \
-          dfu.c \
-          dfu_file.c \
-          quirks.c \
-          -lusb-1.0
+        run: gcc -I/tmp/include -L/tmp/MinGW64/dll -L/tmp/MinGW64/static -DHAVE_WINDOWS_H -o dfu-util main.c dfu_load.c dfu_util.c dfuse.c dfuse_mem.c dfu.c dfu_file.c quirks.c -lusb-1.0
 
       - name: Rename binary
         shell: bash
