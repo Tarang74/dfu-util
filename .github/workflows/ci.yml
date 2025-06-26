@@ -45,6 +45,9 @@ jobs:
       - name: Prepare configure script
         run: ./autogen.sh
 
+      - name: Configure build
+        run: ./configure
+
       - name: Build dfu-util
         run: make
 
