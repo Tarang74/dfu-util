@@ -94,9 +94,9 @@ jobs:
       - name: Download libusb
         shell: pwsh
         run: |
-          $zipPath = "$env:RUNNER_TEMP\libusb.zip"
+          $zipPath = "$env:RUNNER_TEMP\libusb.7z"
           $extractPath = "$env:RUNNER_TEMP\libusb"
-          Invoke-WebRequest -Uri "https://github.com/libusb/libusb/releases/download/v1.0.29/libusb-1.0.29.zip" -OutFile $zipPath
+          Invoke-WebRequest -Uri "https://github.com/libusb/libusb/releases/download/v1.0.29/libusb-1.0.29.7z" -OutFile $zipPath
           Expand-Archive -Path $zipPath -DestinationPath $extractPath
 
       - name: Build dfu-util
