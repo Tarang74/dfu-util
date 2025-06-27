@@ -55,7 +55,7 @@ jobs:
       - name: Rename binary
         shell: bash
         run: |
-          bin_path="src/dfu-util"
+          bin_path="dfu-util"
           cp "$bin_path" "dfu-util-${{ matrix.host }}"
 
       - name: Upload artifact
@@ -108,11 +108,11 @@ jobs:
       - name: Rename binary
         shell: bash
         run: |
-          bin_path="src/dfu-util.exe"
-          cp "$bin_path" "dfu-util-${{ matrix.host }}"
+          bin_path="dfu-util.exe"
+          cp "$bin_path" "dfu-util-${{ matrix.host }}.exe"
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: dfu-util-${{ matrix.host }}
-          path: dfu-util-${{ matrix.host }}
+          name: dfu-util-${{ matrix.host }}.exe
+          path: dfu-util-${{ matrix.host }}.exe
