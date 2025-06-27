@@ -38,6 +38,9 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y libtool libusb-1.0-0-dev
 
+      - if: matrix.name == 'macos-x86_64'
+        run: ls -lah --level=2 /opt/homebrew/opt/libusb/
+
       - name: Build dfu-util
         if: runner.os == 'macOS'
         run: gcc -I/opt/homebrew/opt/libusb/include/libusb-1.0 -L/opt/homebrew/opt/libusb/lib -DHAVE_CONFIG_H -o dfu-util main.c dfu_load.c dfu_util.c dfuse.c dfuse_mem.c dfu.c dfu_file.c quirks.c -lusb-1.0
@@ -87,17 +90,22 @@ jobs:
           install: >-
             base-devel
             gcc
-            unzip
-            p7zip
 
       - name: Download libusb
+        shell: pwsh
         run: |
-          mkdir -p /tmp/libusb
-          curl -L -o /tmp/libusb.7z https://github.com/libusb/libusb/releases/download/v1.0.29/libusb-1.0.29.7z
-          7z x /tmp/libusb.7z -o/tmp/libusb
+          $zipPath = "$env:RUNNER_TEMP\libusb.zip"
+          $extractPath = "$env:RUNNER_TEMP\libusb"
+          Invoke-WebRequest -Uri "https://github.com/libusb/libusb/releases/download/v1.0.29/libusb-1.0.29.zip" -OutFile $zipPath
+          Expand-Archive -Path $zipPath -DestinationPath $extractPath
 
       - name: Build dfu-util
-        run: gcc -I/tmp/include -L/tmp/MinGW64/dll -L/tmp/MinGW64/static -DHAVE_WINDOWS_H -o dfu-util main.c dfu_load.c dfu_util.c dfuse.c dfuse_mem.c dfu.c dfu_file.c quirks.c -lusb-1.0
+        shell: pwsh
+        run: |
+          $includePath = "$env:RUNNER_TEMP\libusb\include"
+          $dllPath = "$env:RUNNER_TEMP\libusb\MinGW64\dll"
+          $staticPath = "$env:RUNNER_TEMP\libusb\MinGW64\static"
+          gcc -I"$includePath" -L"$dllPath" -L"$staticPath" -DHAVE_WINDOWS_H -o dfu-util main.c dfu_load.c dfu_util.c dfuse.c dfuse_mem.c dfu.c dfu_file.c quirks.c -lusb-1.0
 
       - name: Rename binary
         shell: bash
