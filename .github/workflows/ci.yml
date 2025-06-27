@@ -34,22 +34,23 @@ jobs:
 
       - name: Install dependencies (macOS)
         if: runner.os == 'macOS'
-        run: brew install autoconf automake libusb
+        run: brew install libusb
 
       - name: Install dependencies (Linux)
         if: runner.os == 'Linux'
         run: |
           sudo apt-get update
-          sudo apt-get install -y autoconf automake libtool libusb-1.0-0-dev
-
-      - name: Prepare configure script
-        run: ./autogen.sh
-
-      - name: Configure build
-        run: ./configure
+          sudo apt-get install -y libtool libusb-1.0-0-dev
 
       - name: Build dfu-util
-        run: make
+        if: runner.os == 'macOS'
+        run: gcc -I/opt/homebrew/opt/libusb/include/libusb-1.0 -L/opt/homebrew/opt/libusb/lib -DHAVE_CONFIG_H -I../ -o dfu-util main.c dfu_load.c dfu_util.c dfuse.c dfuse_mem.c dfu.c dfu_file.c quirks.c -lusb-1.0
+
+      - name: Build dfu-util
+        if: runner.os == 'Linux'
+        run: |
+          dpkg -L libusb
+          gcc -I/opt/homebrew/opt/libusb/include/libusb-1.0 -L/opt/homebrew/opt/libusb/lib -DHAVE_CONFIG_H -I../ -o dfu-util main.c dfu_load.c dfu_util.c dfuse.c dfuse_mem.c dfu.c dfu_file.c quirks.c -lusb-1.0
 
       - name: Rename binary
         shell: bash
