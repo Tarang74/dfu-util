@@ -44,9 +44,7 @@ jobs:
 
       - name: Build dfu-util
         if: runner.os == 'Linux'
-        run: |
-          dpkg -L libusb
-          gcc -I/usr/include/libusb-1.0 -L/usr/lib/x86_64-linux-gnu/ -DHAVE_CONFIG_H -o dfu-util main.c dfu_load.c dfu_util.c dfuse.c dfuse_mem.c dfu.c dfu_file.c quirks.c -lusb-1.0
+        run: gcc -I/usr/include/libusb-1.0 -L/usr/lib/x86_64-linux-gnu/ -DHAVE_CONFIG_H -o dfu-util main.c dfu_load.c dfu_util.c dfuse.c dfuse_mem.c dfu.c dfu_file.c quirks.c -lusb-1.0
 
       - name: Rename binary
         shell: bash
