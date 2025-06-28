@@ -32,21 +32,19 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # - if: runner.os == 'macOS'
-      #   run: brew install libusb
-
       - name: Install dependencies (Linux)
         if: runner.os == 'Linux'
         run: |
           sudo apt-get update
           sudo apt-get install -y libtool libusb-1.0-0-dev
 
-      - if: matrix.name == 'macos-x86_64'
-        run: ls -lah /opt/homebrew/Cellar/
+      - name: Build dfu-util
+        if: matrix.name == 'macos-aarch64'
+        run: gcc -I/opt/homebrew/opt/libusb/include/libusb-1.0 -L/opt/homebrew/opt/libusb/lib -DHAVE_CONFIG_H -o dfu-util main.c dfu_load.c dfu_util.c dfuse.c dfuse_mem.c dfu.c dfu_file.c quirks.c -lusb-1.0
 
       - name: Build dfu-util
-        if: runner.os == 'macOS'
-        run: gcc -I/opt/homebrew/opt/libusb/include/libusb-1.0 -L/opt/homebrew/opt/libusb/lib -DHAVE_CONFIG_H -o dfu-util main.c dfu_load.c dfu_util.c dfuse.c dfuse_mem.c dfu.c dfu_file.c quirks.c -lusb-1.0
+        if: matrix.name == 'macos-x86_64'
+        run: gcc -I/usr/local/libusb/include/libusb-1.0 -L/usr/local/libusb/lib -DHAVE_CONFIG_H -o dfu-util main.c dfu_load.c dfu_util.c dfuse.c dfuse_mem.c dfu.c dfu_file.c quirks.c -lusb-1.0
 
       - name: Build dfu-util
         if: runner.os == 'Linux'
