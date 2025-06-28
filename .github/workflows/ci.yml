@@ -44,7 +44,9 @@ jobs:
 
       - name: Build dfu-util
         if: matrix.name == 'macos-x86_64'
-        run: gcc -I/usr/local/libusb/include/libusb-1.0 -L/usr/local/libusb/lib -DHAVE_CONFIG_H -o dfu-util main.c dfu_load.c dfu_util.c dfuse.c dfuse_mem.c dfu.c dfu_file.c quirks.c -lusb-1.0
+        run: |
+          ls -lah /usr/local
+          gcc -I/usr/local/libusb/include/libusb-1.0 -L/usr/local/libusb/lib -DHAVE_CONFIG_H -o dfu-util main.c dfu_load.c dfu_util.c dfuse.c dfuse_mem.c dfu.c dfu_file.c quirks.c -lusb-1.0
 
       - name: Build dfu-util
         if: runner.os == 'Linux'
