@@ -106,7 +106,7 @@ jobs:
           $includePath = "C:\libusb\include"
           $dllPath = "C:\libusb\MinGW64\dll"
           $staticPath = "C:\libusb\MinGW64\static"
-          gcc -I"$includePath" -L"$dllPath" -L"$staticPath" -DHAVE_WINDOWS_H -o dfu-util main.c dfu_load.c dfu_util.c dfuse.c dfuse_mem.c dfu.c dfu_file.c quirks.c libusb-1.0.a
+          gcc -I"$includePath" -L"$dllPath" -L"$staticPath" -DHAVE_WINDOWS_H -o dfu-util main.c dfu_load.c dfu_util.c dfuse.c dfuse_mem.c dfu.c dfu_file.c quirks.c $staticPath\libusb-1.0.a
 
       - name: Rename binary
         shell: bash
