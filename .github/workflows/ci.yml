@@ -98,7 +98,7 @@ jobs:
           $zipPath = "C:\libusb.7z"
           $extractPath = "C:\libusb"
           Invoke-WebRequest -Uri "https://github.com/libusb/libusb/releases/download/v1.0.29/libusb-1.0.29.7z" -OutFile $zipPath
-          "C:\Program Files\7-Zip\7z.exe" x $zipPath "-o$($extractPath)" -y
+          & "C:\Program Files\7-Zip\7z.exe" x $zipPath "-o$($extractPath)" -y
 
       - name: Build dfu-util
         shell: pwsh
