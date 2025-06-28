@@ -97,17 +97,17 @@ jobs:
       - name: Download libusb
         shell: pwsh
         run: |
-          $zipPath = "$env:RUNNER_TEMP\libusb.7z"
-          $extractPath = "$env:RUNNER_TEMP\libusb"
+          $zipPath = "C:\libusb.7z"
+          $extractPath = "C:\libusb"
           Invoke-WebRequest -Uri "https://github.com/libusb/libusb/releases/download/v1.0.29/libusb-1.0.29.7z" -OutFile $zipPath
-          Expand-Archive -Path $zipPath -DestinationPath $extractPath
+          Expand-Archive $zipPath -DestinationPath $extractPath
 
       - name: Build dfu-util
         shell: pwsh
         run: |
-          $includePath = "$env:RUNNER_TEMP\libusb\include"
-          $dllPath = "$env:RUNNER_TEMP\libusb\MinGW64\dll"
-          $staticPath = "$env:RUNNER_TEMP\libusb\MinGW64\static"
+          $includePath = "C:\libusb\include"
+          $dllPath = "C:\libusb\MinGW64\dll"
+          $staticPath = "C:\libusb\MinGW64\static"
           gcc -I"$includePath" -L"$dllPath" -L"$staticPath" -DHAVE_WINDOWS_H -o dfu-util main.c dfu_load.c dfu_util.c dfuse.c dfuse_mem.c dfu.c dfu_file.c quirks.c -lusb-1.0
 
       - name: Rename binary
