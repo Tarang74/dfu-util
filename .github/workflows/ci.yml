@@ -42,7 +42,7 @@ jobs:
           sudo apt-get install -y libtool libusb-1.0-0-dev
 
       - if: matrix.name == 'macos-x86_64'
-        run: tree -L 3 /opt/homebrew/opt/libusb/
+        run: tree -L 3 /opt/homebrew/opt/
 
       - name: Build dfu-util
         if: runner.os == 'macOS'
