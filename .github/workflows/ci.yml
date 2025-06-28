@@ -44,9 +44,7 @@ jobs:
 
       - name: Build dfu-util
         if: matrix.name == 'macos-x86_64'
-        run: |
-          ls -lah /usr/local
-          gcc -I/usr/local/opt/libusb/include/libusb-1.0 -L/usr/local/opt/libusb/lib -DHAVE_CONFIG_H -o dfu-util main.c dfu_load.c dfu_util.c dfuse.c dfuse_mem.c dfu.c dfu_file.c quirks.c -lusb-1.0
+        run: gcc -I/usr/local/opt/libusb/include/libusb-1.0 -L/usr/local/opt/libusb/lib -DHAVE_CONFIG_H -o dfu-util main.c dfu_load.c dfu_util.c dfuse.c dfuse_mem.c dfu.c dfu_file.c quirks.c -lusb-1.0
 
       - name: Build dfu-util
         if: runner.os == 'Linux'
@@ -108,7 +106,7 @@ jobs:
           $includePath = "C:\libusb\include"
           $dllPath = "C:\libusb\MinGW64\dll"
           $staticPath = "C:\libusb\MinGW64\static"
-          gcc -I"$includePath" -L"$dllPath" -L"$staticPath" -DHAVE_WINDOWS_H -o dfu-util main.c dfu_load.c dfu_util.c dfuse.c dfuse_mem.c dfu.c dfu_file.c quirks.c
+          gcc -I"$includePath" -L"$dllPath" -L"$staticPath" -DHAVE_WINDOWS_H -o dfu-util main.c dfu_load.c dfu_util.c dfuse.c dfuse_mem.c dfu.c dfu_file.c quirks.c libusb-1.0.a
 
       - name: Rename binary
         shell: bash
