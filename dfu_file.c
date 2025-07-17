@@ -20,21 +20,21 @@
  */
 
 #ifdef HAVE_CONFIG_H
-# include "config.h"
+#include "config.h"
 #endif
 
 #define __USE_MINGW_ANSI_STDIO 1
-#include <stdio.h>
-#include <string.h>
 #include <errno.h>
-#include <stdint.h>
-#include <stdlib.h>
-#include <time.h>
 #include <fcntl.h>
 #include <limits.h>
+#include <stdint.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <time.h>
 
-#include "portable.h"
 #include "dfu_file.h"
+#include "portable.h"
 
 #define DFU_SUFFIX_LENGTH 16
 #define LMDFU_PREFIX_LENGTH 8
@@ -87,387 +87,379 @@ static const unsigned long crc32_table[] = {
     0x54de5729, 0x23d967bf, 0xb3667a2e, 0xc4614ab8, 0x5d681b02, 0x2a6f2b94,
     0xb40bbe37, 0xc30c8ea1, 0x5a05df1b, 0x2d02ef8d};
 
-static uint32_t crc32_byte(uint32_t accum, uint8_t delta)
-{
-        return crc32_table[(accum ^ delta) & 0xff] ^ (accum >> 8);
+static uint32_t crc32_byte(uint32_t accum, uint8_t delta) {
+  return crc32_table[(accum ^ delta) & 0xff] ^ (accum >> 8);
 }
 
-static int probe_prefix(struct dfu_file *file)
-{
-	uint8_t *prefix = file->firmware;
+static int probe_prefix(struct dfu_file *file) {
+  uint8_t *prefix = file->firmware;
 
-	if (file->size.total <  LMDFU_PREFIX_LENGTH)
-		return 1;
-	if ((prefix[0] == 0x01) && (prefix[1] == 0x00)) {
-		uint32_t payload_length = (prefix[7] << 24) | (prefix[6] << 16) |
-			(prefix[5] << 8) | prefix[4];
-		uint32_t expected_payload_length = (uint32_t) file->size.total - LMDFU_PREFIX_LENGTH - file->size.suffix;
-		if (payload_length != expected_payload_length)
-			return 1;
-		file->prefix_type = LMDFU_PREFIX;
-		file->size.prefix = LMDFU_PREFIX_LENGTH;
-		file->lmdfu_address = 1024 * ((prefix[3] << 8) | prefix[2]);
-	}
-	else if (((prefix[0] & 0x3f) == 0x1a) && ((prefix[1] & 0x3f)== 0x3f)) {
-		file->prefix_type = LPCDFU_UNENCRYPTED_PREFIX;
-		file->size.prefix = LPCDFU_PREFIX_LENGTH;
-	}
+  if (file->size.total < LMDFU_PREFIX_LENGTH)
+    return 1;
+  if ((prefix[0] == 0x01) && (prefix[1] == 0x00)) {
+    uint32_t payload_length =
+        (prefix[7] << 24) | (prefix[6] << 16) | (prefix[5] << 8) | prefix[4];
+    uint32_t expected_payload_length =
+        (uint32_t)file->size.total - LMDFU_PREFIX_LENGTH - file->size.suffix;
+    if (payload_length != expected_payload_length)
+      return 1;
+    file->prefix_type = LMDFU_PREFIX;
+    file->size.prefix = LMDFU_PREFIX_LENGTH;
+    file->lmdfu_address = 1024 * ((prefix[3] << 8) | prefix[2]);
+  } else if (((prefix[0] & 0x3f) == 0x1a) && ((prefix[1] & 0x3f) == 0x3f)) {
+    file->prefix_type = LPCDFU_UNENCRYPTED_PREFIX;
+    file->size.prefix = LPCDFU_PREFIX_LENGTH;
+  }
 
-	if (file->size.prefix + file->size.suffix > file->size.total)
-		return 1;
-	return 0;
+  if (file->size.prefix + file->size.suffix > file->size.total)
+    return 1;
+  return 0;
 }
 
 void dfu_progress_bar(const char *desc, unsigned long long curr,
-		unsigned long long max)
-{
-	static char buf[PROGRESS_BAR_WIDTH + 1];
-	static unsigned long long last_progress = -1;
-	static time_t last_time;
-	time_t curr_time = time(NULL);
-	unsigned long long progress;
-	unsigned long long x;
+                      unsigned long long max) {
+  static char buf[PROGRESS_BAR_WIDTH + 1];
+  static unsigned long long last_progress = -1;
+  static time_t last_time;
+  time_t curr_time = time(NULL);
+  unsigned long long progress;
+  unsigned long long x;
 
-	/* check for not known maximum */
-	if (max < curr)
-		max = curr + 1;
-	/* make none out of none give zero */
-	if (max == 0 && curr == 0)
-		max = 1;
+  /* check for not known maximum */
+  if (max < curr)
+    max = curr + 1;
+  /* make none out of none give zero */
+  if (max == 0 && curr == 0)
+    max = 1;
 
-	/* compute completion */
-	progress = (PROGRESS_BAR_WIDTH * curr) / max;
-	if (progress > PROGRESS_BAR_WIDTH)
-		progress = PROGRESS_BAR_WIDTH;
-	if (progress == last_progress &&
-	    curr_time == last_time)
-		return;
-	last_progress = progress;
-	last_time = curr_time;
+  /* compute completion */
+  progress = (PROGRESS_BAR_WIDTH * curr) / max;
+  if (progress > PROGRESS_BAR_WIDTH)
+    progress = PROGRESS_BAR_WIDTH;
+  if (progress == last_progress && curr_time == last_time)
+    return;
+  last_progress = progress;
+  last_time = curr_time;
 
-	for (x = 0; x != PROGRESS_BAR_WIDTH; x++) {
-		if (x < progress)
-			buf[x] = '=';
-		else
-			buf[x] = ' ';
-	}
-	buf[x] = 0;
+  for (x = 0; x != PROGRESS_BAR_WIDTH; x++) {
+    if (x < progress)
+      buf[x] = '=';
+    else
+      buf[x] = ' ';
+  }
+  buf[x] = 0;
 
-	printf("\r%s\t[%s] %3llu%% %12llu bytes", desc, buf,
-	    (100ULL * curr) / max, curr);
+  printf("\r%s\t[%s] %3llu%% %12llu bytes", desc, buf, (100ULL * curr) / max,
+         curr);
 
-	if (progress == PROGRESS_BAR_WIDTH)
-		printf("\n%s done.\n", desc);
+  if (progress == PROGRESS_BAR_WIDTH)
+    printf("\n%s done.\n", desc);
 }
 
-void *dfu_malloc(size_t size)
-{
-	void *ptr = malloc(size);
-	if (ptr == NULL)
-		errx(EX_SOFTWARE, "Cannot allocate memory of size %d bytes", (int)size);
-	return (ptr);
+void *dfu_malloc(size_t size) {
+  void *ptr = malloc(size);
+  if (ptr == NULL)
+    errx(EX_SOFTWARE, "Cannot allocate memory of size %d bytes", (int)size);
+  return (ptr);
 }
 
-uint32_t dfu_file_write_crc(int f, uint32_t crc, const void *buf, int size)
-{
-	int x;
+uint32_t dfu_file_write_crc(int f, uint32_t crc, const void *buf, int size) {
+  int x;
 
-	/* compute CRC */
-	for (x = 0; x != size; x++)
-		crc = crc32_byte(crc, ((uint8_t *)buf)[x]);
+  /* compute CRC */
+  for (x = 0; x != size; x++)
+    crc = crc32_byte(crc, ((uint8_t *)buf)[x]);
 
-	/* write data */
-	if (write(f, buf, size) != size)
-		err(EX_IOERR, "Could not write %d bytes to file %d", size, f);
+  /* write data */
+  if (write(f, buf, size) != size)
+    err(EX_IOERR, "Could not write %d bytes to file %d", size, f);
 
-	return (crc);
+  return (crc);
 }
 
-void dfu_load_file(struct dfu_file *file, enum suffix_req check_suffix, enum prefix_req check_prefix)
-{
-	off_t offset;
-	int f;
-	int i;
-	int res;
+void dfu_load_file(struct dfu_file *file, enum suffix_req check_suffix,
+                   enum prefix_req check_prefix) {
+  off_t offset;
+  int f;
+  int i;
+  int res;
 
-	file->size.prefix = 0;
-	file->size.suffix = 0;
+  file->size.prefix = 0;
+  file->size.suffix = 0;
 
-	/* default values, if no valid suffix is found */
-	file->bcdDFU = 0;
-	file->idVendor = 0xffff; /* wildcard value */
-	file->idProduct = 0xffff; /* wildcard value */
-	file->bcdDevice = 0xffff; /* wildcard value */
+  /* default values, if no valid suffix is found */
+  file->bcdDFU = 0;
+  file->idVendor = 0xffff;  /* wildcard value */
+  file->idProduct = 0xffff; /* wildcard value */
+  file->bcdDevice = 0xffff; /* wildcard value */
 
-	/* default values, if no valid prefix is found */
-	file->lmdfu_address = 0;
+  /* default values, if no valid prefix is found */
+  file->lmdfu_address = 0;
 
-	free(file->firmware);
+  free(file->firmware);
 
-	if (!strcmp(file->name, "-")) {
-		size_t read_bytes;
+  if (!strcmp(file->name, "-")) {
+    size_t read_bytes;
 
 #ifdef WIN32
-		_setmode( _fileno( stdin ), _O_BINARY );
+    _setmode(_fileno(stdin), _O_BINARY);
 #endif
-		file->firmware = (uint8_t*) dfu_malloc(STDIN_CHUNK_SIZE);
-		read_bytes = fread(file->firmware, 1, STDIN_CHUNK_SIZE, stdin);
-		file->size.total = read_bytes;
-		while (read_bytes == STDIN_CHUNK_SIZE) {
-			file->firmware = (uint8_t*) realloc(file->firmware, file->size.total + STDIN_CHUNK_SIZE);
-			if (!file->firmware)
-				err(EX_SOFTWARE, "Could not allocate firmware buffer");
-			read_bytes = fread(file->firmware + file->size.total, 1, STDIN_CHUNK_SIZE, stdin);
-			file->size.total += read_bytes;
-		}
-		if (verbose)
-			printf("Read %lli bytes from stdin\n", (long long) file->size.total);
-		/* Never require suffix when reading from stdin */
-		check_suffix = MAYBE_SUFFIX;
-	} else {
-		ssize_t read_count;
-		off_t read_total = 0;
+    file->firmware = (uint8_t *)dfu_malloc(STDIN_CHUNK_SIZE);
+    read_bytes = fread(file->firmware, 1, STDIN_CHUNK_SIZE, stdin);
+    file->size.total = read_bytes;
+    while (read_bytes == STDIN_CHUNK_SIZE) {
+      file->firmware = (uint8_t *)realloc(file->firmware,
+                                          file->size.total + STDIN_CHUNK_SIZE);
+      if (!file->firmware)
+        err(EX_SOFTWARE, "Could not allocate firmware buffer");
+      read_bytes =
+          fread(file->firmware + file->size.total, 1, STDIN_CHUNK_SIZE, stdin);
+      file->size.total += read_bytes;
+    }
+    if (verbose)
+      printf("Read %lli bytes from stdin\n", (long long)file->size.total);
+    /* Never require suffix when reading from stdin */
+    check_suffix = MAYBE_SUFFIX;
+  } else {
+    ssize_t read_count;
+    off_t read_total = 0;
 
-		f = open(file->name, O_RDONLY | O_BINARY);
-		if (f < 0)
-			err(EX_NOINPUT, "Could not open file %s for reading", file->name);
+    f = open(file->name, O_RDONLY | O_BINARY);
+    if (f < 0)
+      err(EX_NOINPUT, "Could not open file %s for reading", file->name);
 
-		offset = lseek(f, 0, SEEK_END);
+    offset = lseek(f, 0, SEEK_END);
 
-		if (offset < 0)
-			err(EX_SOFTWARE, "File size is too big");
+    if (offset < 0)
+      err(EX_SOFTWARE, "File size is too big");
 
-		if (lseek(f, 0, SEEK_SET) != 0)
-			err(EX_IOERR, "Could not seek to beginning");
+    if (lseek(f, 0, SEEK_SET) != 0)
+      err(EX_IOERR, "Could not seek to beginning");
 
-		file->size.total = offset;
+    file->size.total = offset;
 
-		if (file->size.total > SSIZE_MAX) {
-			err(EX_SOFTWARE, "File too large for memory allocation on this platform");
-		}
-		file->firmware = dfu_malloc(file->size.total);
+    if (file->size.total > SSIZE_MAX) {
+      err(EX_SOFTWARE, "File too large for memory allocation on this platform");
+    }
+    file->firmware = dfu_malloc(file->size.total);
 
-		while (read_total < file->size.total) {
-			off_t to_read = file->size.total - read_total;
-			/* read() limit on Linux, slightly below MAX_INT on Windows */
-			if (to_read > 0x7ffff000)
-				to_read = 0x7ffff000;
-			read_count = read(f, file->firmware + read_total, to_read);
-			if (read_count == 0)
-				break;
-			if (read_count == -1 && errno != EINTR)
-				break;
-			read_total += read_count;
-		}
-		if (read_total != file->size.total) {
-			err(EX_IOERR, "Could only read %lld of %lld bytes from %s",
-			    (long long) read_total, (long long) file->size.total, file->name);
-		}
-		close(f);
-	}
+    while (read_total < file->size.total) {
+      off_t to_read = file->size.total - read_total;
+      /* read() limit on Linux, slightly below MAX_INT on Windows */
+      if (to_read > 0x7ffff000)
+        to_read = 0x7ffff000;
+      read_count = read(f, file->firmware + read_total, to_read);
+      if (read_count == 0)
+        break;
+      if (read_count == -1 && errno != EINTR)
+        break;
+      read_total += read_count;
+    }
+    if (read_total != file->size.total) {
+      err(EX_IOERR, "Could only read %lld of %lld bytes from %s",
+          (long long)read_total, (long long)file->size.total, file->name);
+    }
+    close(f);
+  }
 
-	/* Check for possible DFU file suffix by trying to parse one */
-	{
-		uint32_t crc = 0xffffffff;
-		const uint8_t *dfusuffix;
-		int missing_suffix = 0;
-		const char *reason;
+  /* Check for possible DFU file suffix by trying to parse one */
+  {
+    uint32_t crc = 0xffffffff;
+    const uint8_t *dfusuffix;
+    int missing_suffix = 0;
+    const char *reason;
 
-		if (file->size.total < DFU_SUFFIX_LENGTH) {
-			reason = "File too short for DFU suffix";
-			missing_suffix = 1;
-			goto checked;
-		}
+    if (file->size.total < DFU_SUFFIX_LENGTH) {
+      reason = "File too short for DFU suffix";
+      missing_suffix = 1;
+      goto checked;
+    }
 
-		dfusuffix = file->firmware + file->size.total -
-		    DFU_SUFFIX_LENGTH;
+    dfusuffix = file->firmware + file->size.total - DFU_SUFFIX_LENGTH;
 
-		for (i = 0; i < file->size.total - 4; i++)
-			crc = crc32_byte(crc, file->firmware[i]);
+    for (i = 0; i < file->size.total - 4; i++)
+      crc = crc32_byte(crc, file->firmware[i]);
 
-		if (dfusuffix[10] != 'D' ||
-		    dfusuffix[9]  != 'F' ||
-		    dfusuffix[8]  != 'U') {
-			reason = "Invalid DFU suffix signature";
-			missing_suffix = 1;
-			goto checked;
-		}
+    if (dfusuffix[10] != 'D' || dfusuffix[9] != 'F' || dfusuffix[8] != 'U') {
+      reason = "Invalid DFU suffix signature";
+      missing_suffix = 1;
+      goto checked;
+    }
 
-		file->dwCRC = (dfusuffix[15] << 24) +
-		    (dfusuffix[14] << 16) +
-		    (dfusuffix[13] << 8) +
-		    dfusuffix[12];
+    file->dwCRC = (dfusuffix[15] << 24) + (dfusuffix[14] << 16) +
+                  (dfusuffix[13] << 8) + dfusuffix[12];
 
-		if (file->dwCRC != crc) {
-			reason = "DFU suffix CRC does not match";
-			missing_suffix = 1;
-			goto checked;
-		}
+    if (file->dwCRC != crc) {
+      reason = "DFU suffix CRC does not match";
+      missing_suffix = 1;
+      goto checked;
+    }
 
-		/* At this point we believe we have a DFU suffix
-		   so we require further checks to succeed */
+    /* At this point we believe we have a DFU suffix
+       so we require further checks to succeed */
 
-		file->bcdDFU = (dfusuffix[7] << 8) + dfusuffix[6];
+    file->bcdDFU = (dfusuffix[7] << 8) + dfusuffix[6];
 
-		if (verbose)
-			printf("DFU suffix version %x\n", file->bcdDFU);
+    if (verbose)
+      printf("DFU suffix version %x\n", file->bcdDFU);
 
-		file->size.suffix = dfusuffix[11];
+    file->size.suffix = dfusuffix[11];
 
-		if (file->size.suffix < DFU_SUFFIX_LENGTH) {
-			errx(EX_DATAERR, "Unsupported DFU suffix length %d",
-			    file->size.suffix);
-		}
+    if (file->size.suffix < DFU_SUFFIX_LENGTH) {
+      errx(EX_DATAERR, "Unsupported DFU suffix length %d", file->size.suffix);
+    }
 
-		if (file->size.suffix > file->size.total) {
-			errx(EX_DATAERR, "Invalid DFU suffix length %d",
-			    file->size.suffix);
-		}
+    if (file->size.suffix > file->size.total) {
+      errx(EX_DATAERR, "Invalid DFU suffix length %d", file->size.suffix);
+    }
 
-		file->idVendor	= (dfusuffix[5] << 8) + dfusuffix[4];
-		file->idProduct = (dfusuffix[3] << 8) + dfusuffix[2];
-		file->bcdDevice = (dfusuffix[1] << 8) + dfusuffix[0];
+    file->idVendor = (dfusuffix[5] << 8) + dfusuffix[4];
+    file->idProduct = (dfusuffix[3] << 8) + dfusuffix[2];
+    file->bcdDevice = (dfusuffix[1] << 8) + dfusuffix[0];
 
-checked:
-		if (missing_suffix) {
-			if (check_suffix == NEEDS_SUFFIX) {
-				warnx("%s", reason);
-				errx(EX_DATAERR, "Valid DFU suffix needed");
-			} else if (check_suffix == MAYBE_SUFFIX) {
-				warnx("Warning: %s", reason);
-				warnx("A valid DFU suffix will be required in a future dfu-util release");
-			}
-		} else {
-			if (check_suffix == NO_SUFFIX) {
-				errx(EX_DATAERR, "Please remove existing DFU suffix before adding a new one.\n");
-			}
-		}
-	}
-	res = probe_prefix(file);
-	if ((res || file->size.prefix == 0) && check_prefix == NEEDS_PREFIX)
-		errx(EX_DATAERR, "Valid DFU prefix needed");
-	if (file->size.prefix && check_prefix == NO_PREFIX)
-		errx(EX_DATAERR, "A prefix already exists, please delete it first");
-	if (file->size.prefix && verbose) {
-		uint8_t *data = file->firmware;
-		if (file->prefix_type == LMDFU_PREFIX)
-			printf("Possible TI Stellaris DFU prefix with "
-				   "the following properties\n"
-				   "Address:        0x%08x\n"
-				   "Payload length: %d\n",
-				   file->lmdfu_address,
-				   data[4] | (data[5] << 8) |
-				   (data[6] << 16) | (data[7] << 24));
-		else if (file->prefix_type == LPCDFU_UNENCRYPTED_PREFIX)
-			printf("Possible unencrypted NXP LPC DFU prefix with "
-				   "the following properties\n"
-				   "Payload length: %d kiByte\n",
-				   data[2] >>1 | (data[3] << 7) );
-		else
-			errx(EX_DATAERR, "Unknown DFU prefix type");
-	}
+  checked:
+    if (missing_suffix) {
+      if (check_suffix == NEEDS_SUFFIX) {
+        warnx("%s", reason);
+        errx(EX_DATAERR, "Valid DFU suffix needed");
+      } else if (check_suffix == MAYBE_SUFFIX) {
+        warnx("Warning: %s", reason);
+        warnx(
+            "A valid DFU suffix will be required in a future dfu-util release");
+      }
+    } else {
+      if (check_suffix == NO_SUFFIX) {
+        errx(EX_DATAERR,
+             "Please remove existing DFU suffix before adding a new one.\n");
+      }
+    }
+  }
+  res = probe_prefix(file);
+  if ((res || file->size.prefix == 0) && check_prefix == NEEDS_PREFIX)
+    errx(EX_DATAERR, "Valid DFU prefix needed");
+  if (file->size.prefix && check_prefix == NO_PREFIX)
+    errx(EX_DATAERR, "A prefix already exists, please delete it first");
+  if (file->size.prefix && verbose) {
+    uint8_t *data = file->firmware;
+    if (file->prefix_type == LMDFU_PREFIX)
+      printf("Possible TI Stellaris DFU prefix with "
+             "the following properties\n"
+             "Address:        0x%08x\n"
+             "Payload length: %d\n",
+             file->lmdfu_address,
+             data[4] | (data[5] << 8) | (data[6] << 16) | (data[7] << 24));
+    else if (file->prefix_type == LPCDFU_UNENCRYPTED_PREFIX)
+      printf("Possible unencrypted NXP LPC DFU prefix with "
+             "the following properties\n"
+             "Payload length: %d kiByte\n",
+             data[2] >> 1 | (data[3] << 7));
+    else
+      errx(EX_DATAERR, "Unknown DFU prefix type");
+  }
 }
 
-void dfu_store_file(struct dfu_file *file, int write_suffix, int write_prefix)
-{
-	uint32_t crc = 0xffffffff;
-	int f;
+void dfu_store_file(struct dfu_file *file, int write_suffix, int write_prefix) {
+  uint32_t crc = 0xffffffff;
+  int f;
 
-	f = open(file->name, O_WRONLY | O_BINARY | O_TRUNC | O_CREAT, 0666);
-	if (f < 0)
-		err(EX_CANTCREAT, "Could not open file %s for writing", file->name);
+  f = open(file->name, O_WRONLY | O_BINARY | O_TRUNC | O_CREAT, 0666);
+  if (f < 0)
+    err(EX_CANTCREAT, "Could not open file %s for writing", file->name);
 
-	/* write prefix, if any */
-	if (write_prefix) {
-		if (file->prefix_type == LMDFU_PREFIX) {
-			uint8_t lmdfu_prefix[LMDFU_PREFIX_LENGTH];
-			uint32_t addr = file->lmdfu_address / 1024;
+  /* write prefix, if any */
+  if (write_prefix) {
+    if (file->prefix_type == LMDFU_PREFIX) {
+      uint8_t lmdfu_prefix[LMDFU_PREFIX_LENGTH];
+      uint32_t addr = file->lmdfu_address / 1024;
 
-			/* lmdfu_dfu_prefix payload length excludes prefix and suffix */
-			uint32_t len = file->size.total -
-				file->size.prefix - file->size.suffix;
+      /* lmdfu_dfu_prefix payload length excludes prefix and suffix */
+      uint32_t len = file->size.total - file->size.prefix - file->size.suffix;
 
-			lmdfu_prefix[0] = 0x01; /* STELLARIS_DFU_PROG */
-			lmdfu_prefix[1] = 0x00; /* Reserved */
-			lmdfu_prefix[2] = (uint8_t)(addr & 0xff);
-			lmdfu_prefix[3] = (uint8_t)(addr >> 8);
-			lmdfu_prefix[4] = (uint8_t)(len & 0xff);
-			lmdfu_prefix[5] = (uint8_t)(len >> 8) & 0xff;
-			lmdfu_prefix[6] = (uint8_t)(len >> 16) & 0xff;
-			lmdfu_prefix[7] = (uint8_t)(len >> 24);
+      lmdfu_prefix[0] = 0x01; /* STELLARIS_DFU_PROG */
+      lmdfu_prefix[1] = 0x00; /* Reserved */
+      lmdfu_prefix[2] = (uint8_t)(addr & 0xff);
+      lmdfu_prefix[3] = (uint8_t)(addr >> 8);
+      lmdfu_prefix[4] = (uint8_t)(len & 0xff);
+      lmdfu_prefix[5] = (uint8_t)(len >> 8) & 0xff;
+      lmdfu_prefix[6] = (uint8_t)(len >> 16) & 0xff;
+      lmdfu_prefix[7] = (uint8_t)(len >> 24);
 
-			crc = dfu_file_write_crc(f, crc, lmdfu_prefix, LMDFU_PREFIX_LENGTH);
-		}
-		if (file->prefix_type == LPCDFU_UNENCRYPTED_PREFIX) {
-			uint8_t lpcdfu_prefix[LPCDFU_PREFIX_LENGTH] = {0};
-			int i;
+      crc = dfu_file_write_crc(f, crc, lmdfu_prefix, LMDFU_PREFIX_LENGTH);
+    }
+    if (file->prefix_type == LPCDFU_UNENCRYPTED_PREFIX) {
+      uint8_t lpcdfu_prefix[LPCDFU_PREFIX_LENGTH] = {0};
+      int i;
 
-			/* Payload is firmware and prefix rounded to 512 bytes */
-			uint32_t len = (file->size.total - file->size.suffix + 511) /512;
+      /* Payload is firmware and prefix rounded to 512 bytes */
+      uint32_t len = (file->size.total - file->size.suffix + 511) / 512;
 
-			lpcdfu_prefix[0] = 0x1a; /* Unencypted*/
-			lpcdfu_prefix[1] = 0x3f; /* Reserved */
-			lpcdfu_prefix[2] = (uint8_t)(len & 0xff);
-			lpcdfu_prefix[3] = (uint8_t)((len >> 8) & 0xff);
-			for (i = 12; i < LPCDFU_PREFIX_LENGTH; i++)
-				lpcdfu_prefix[i] = 0xff;
+      lpcdfu_prefix[0] = 0x1a; /* Unencypted*/
+      lpcdfu_prefix[1] = 0x3f; /* Reserved */
+      lpcdfu_prefix[2] = (uint8_t)(len & 0xff);
+      lpcdfu_prefix[3] = (uint8_t)((len >> 8) & 0xff);
+      for (i = 12; i < LPCDFU_PREFIX_LENGTH; i++)
+        lpcdfu_prefix[i] = 0xff;
 
-			crc = dfu_file_write_crc(f, crc, lpcdfu_prefix, LPCDFU_PREFIX_LENGTH);
-		}
-	}
-	/* write firmware binary */
-	crc = dfu_file_write_crc(f, crc, file->firmware + file->size.prefix,
-	    file->size.total - file->size.prefix - file->size.suffix);
+      crc = dfu_file_write_crc(f, crc, lpcdfu_prefix, LPCDFU_PREFIX_LENGTH);
+    }
+  }
+  /* write firmware binary */
+  crc = dfu_file_write_crc(f, crc, file->firmware + file->size.prefix,
+                           file->size.total - file->size.prefix -
+                               file->size.suffix);
 
-	/* write suffix, if any */
-	if (write_suffix) {
-		uint8_t dfusuffix[DFU_SUFFIX_LENGTH];
+  /* write suffix, if any */
+  if (write_suffix) {
+    uint8_t dfusuffix[DFU_SUFFIX_LENGTH];
 
-		dfusuffix[0] = file->bcdDevice & 0xff;
-		dfusuffix[1] = file->bcdDevice >> 8;
-		dfusuffix[2] = file->idProduct & 0xff;
-		dfusuffix[3] = file->idProduct >> 8;
-		dfusuffix[4] = file->idVendor & 0xff;
-		dfusuffix[5] = file->idVendor >> 8;
-		dfusuffix[6] = file->bcdDFU & 0xff;
-		dfusuffix[7] = file->bcdDFU >> 8;
-		dfusuffix[8] = 'U';
-		dfusuffix[9] = 'F';
-		dfusuffix[10] = 'D';
-		dfusuffix[11] = DFU_SUFFIX_LENGTH;
+    dfusuffix[0] = file->bcdDevice & 0xff;
+    dfusuffix[1] = file->bcdDevice >> 8;
+    dfusuffix[2] = file->idProduct & 0xff;
+    dfusuffix[3] = file->idProduct >> 8;
+    dfusuffix[4] = file->idVendor & 0xff;
+    dfusuffix[5] = file->idVendor >> 8;
+    dfusuffix[6] = file->bcdDFU & 0xff;
+    dfusuffix[7] = file->bcdDFU >> 8;
+    dfusuffix[8] = 'U';
+    dfusuffix[9] = 'F';
+    dfusuffix[10] = 'D';
+    dfusuffix[11] = DFU_SUFFIX_LENGTH;
 
-		crc = dfu_file_write_crc(f, crc, dfusuffix,
-		    DFU_SUFFIX_LENGTH - 4);
+    crc = dfu_file_write_crc(f, crc, dfusuffix, DFU_SUFFIX_LENGTH - 4);
 
-		dfusuffix[12] = crc;
-		dfusuffix[13] = crc >> 8;
-		dfusuffix[14] = crc >> 16;
-		dfusuffix[15] = crc >> 24;
+    dfusuffix[12] = crc;
+    dfusuffix[13] = crc >> 8;
+    dfusuffix[14] = crc >> 16;
+    dfusuffix[15] = crc >> 24;
 
-		crc = dfu_file_write_crc(f, crc, dfusuffix + 12, 4);
-	}
-	close(f);
+    crc = dfu_file_write_crc(f, crc, dfusuffix + 12, 4);
+  }
+  close(f);
 }
 
-void show_suffix_and_prefix(struct dfu_file *file)
-{
-	if (file->size.prefix == LMDFU_PREFIX_LENGTH) {
-		printf("The file %s contains a TI Stellaris DFU prefix with the following properties:\n", file->name);
-		printf("Address:\t0x%08x\n", file->lmdfu_address);
-	} else if (file->size.prefix == LPCDFU_PREFIX_LENGTH) {
-		uint8_t * prefix = file->firmware;
-		printf("The file %s contains a NXP unencrypted LPC DFU prefix with the following properties:\n", file->name);
-		printf("Size:\t%5d kiB\n", prefix[2]>>1|prefix[3]<<7);
-	} else if (file->size.prefix != 0) {
-		printf("The file %s contains an unknown prefix\n", file->name);
-	}
-	if (file->size.suffix > 0) {
-		printf("The file %s contains a DFU suffix with the following properties:\n", file->name);
-		printf("BCD device:\t0x%04X\n", file->bcdDevice);
-		printf("Product ID:\t0x%04X\n",file->idProduct);
-		printf("Vendor ID:\t0x%04X\n", file->idVendor);
-		printf("BCD DFU:\t0x%04X\n", file->bcdDFU);
-		printf("Length:\t\t%i\n", file->size.suffix);
-		printf("CRC:\t\t0x%08X\n", file->dwCRC);
-	}
+void show_suffix_and_prefix(struct dfu_file *file) {
+  if (file->size.prefix == LMDFU_PREFIX_LENGTH) {
+    printf("The file %s contains a TI Stellaris DFU prefix with the following "
+           "properties:\n",
+           file->name);
+    printf("Address:\t0x%08x\n", file->lmdfu_address);
+  } else if (file->size.prefix == LPCDFU_PREFIX_LENGTH) {
+    uint8_t *prefix = file->firmware;
+    printf("The file %s contains a NXP unencrypted LPC DFU prefix with the "
+           "following properties:\n",
+           file->name);
+    printf("Size:\t%5d kiB\n", prefix[2] >> 1 | prefix[3] << 7);
+  } else if (file->size.prefix != 0) {
+    printf("The file %s contains an unknown prefix\n", file->name);
+  }
+  if (file->size.suffix > 0) {
+    printf("The file %s contains a DFU suffix with the following properties:\n",
+           file->name);
+    printf("BCD device:\t0x%04X\n", file->bcdDevice);
+    printf("Product ID:\t0x%04X\n", file->idProduct);
+    printf("Vendor ID:\t0x%04X\n", file->idVendor);
+    printf("BCD DFU:\t0x%04X\n", file->bcdDFU);
+    printf("Length:\t\t%i\n", file->size.suffix);
+    printf("CRC:\t\t0x%08X\n", file->dwCRC);
+  }
 }

@@ -22,164 +22,156 @@
  */
 
 #ifdef HAVE_CONFIG_H
-# include "config.h"
+#include "config.h"
 #endif
 
-#include <stdlib.h>
-#include <stdio.h>
-#include <stdint.h>
 #include <getopt.h>
+#include <stdint.h>
+#include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
-#include "portable.h"
 #include "dfu_file.h"
+#include "portable.h"
 
-enum mode {
-	MODE_NONE,
-	MODE_ADD,
-	MODE_DEL,
-	MODE_CHECK
-};
+enum mode { MODE_NONE, MODE_ADD, MODE_DEL, MODE_CHECK };
 
 int verbose;
 
-static void help(void)
-{
-	fprintf(stderr, "Usage: dfu-prefix [options] ...\n"
-		"  -h --help\t\t\tPrint this help message\n"
-		"  -V --version\t\t\tPrint the version number\n"
-		"  -c --check <file>\t\tCheck DFU prefix of <file>\n"
-		"  -D --delete <file>\t\tDelete DFU prefix from <file>\n"
-		"  -a --add <file>\t\tAdd DFU prefix to <file>\n"
-		"In combination with -a:\n"
-		);
-	fprintf(stderr, "  -s --stellaris-address <address>  Add TI Stellaris address prefix to <file>\n"
-		"In combination with -D or -c:\n"
-		"  -T --stellaris\t\tAct on TI Stellaris address prefix of <file>\n"
-		"In combination with -a or -D or -c:\n"
-		"  -L --lpc-prefix\t\tUse NXP LPC DFU prefix format\n"
-		);
+static void help(void) {
+  fprintf(stderr, "Usage: dfu-prefix [options] ...\n"
+                  "  -h --help\t\t\tPrint this help message\n"
+                  "  -V --version\t\t\tPrint the version number\n"
+                  "  -c --check <file>\t\tCheck DFU prefix of <file>\n"
+                  "  -D --delete <file>\t\tDelete DFU prefix from <file>\n"
+                  "  -a --add <file>\t\tAdd DFU prefix to <file>\n"
+                  "In combination with -a:\n");
+  fprintf(stderr,
+          "  -s --stellaris-address <address>  Add TI Stellaris address prefix "
+          "to <file>\n"
+          "In combination with -D or -c:\n"
+          "  -T --stellaris\t\tAct on TI Stellaris address prefix of <file>\n"
+          "In combination with -a or -D or -c:\n"
+          "  -L --lpc-prefix\t\tUse NXP LPC DFU prefix format\n");
 }
 
-static void print_version(void)
-{
-	printf("dfu-prefix (%s) %s\n\n", PACKAGE, PACKAGE_VERSION);
-	printf("Copyright 2011-2012 Stefan Schmidt, 2014 Uwe Bonnes, 2014-2020 Tormod Volden\n"
-	       "This program is Free Software and has ABSOLUTELY NO WARRANTY\n"
-	       "Please report bugs to %s\n\n", PACKAGE_BUGREPORT);
-
+static void print_version(void) {
+  printf("dfu-prefix (%s) %s\n\n", PACKAGE, PACKAGE_VERSION);
+  printf("Copyright 2011-2012 Stefan Schmidt, 2014 Uwe Bonnes, 2014-2020 "
+         "Tormod Volden\n"
+         "This program is Free Software and has ABSOLUTELY NO WARRANTY\n"
+         "Please report bugs to %s\n\n",
+         PACKAGE_BUGREPORT);
 }
 
-static struct option opts[] = {
-	{ "help", 0, 0, 'h' },
-	{ "version", 0, 0, 'V' },
-	{ "check", 1, 0, 'c' },
-	{ "add", 1, 0, 'a' },
-	{ "delete", 1, 0, 'D' },
-	{ "stellaris-address", 1, 0, 's' },
-	{ "stellaris", 0, 0, 'T' },
-	{ "LPC", 0, 0, 'L' },
-	{ 0, 0, 0, 0 }
-};
-int main(int argc, char **argv)
-{
-	struct dfu_file file;
-	enum mode mode = MODE_NONE;
-	enum prefix_type type = ZERO_PREFIX;
-	uint32_t lmdfu_flash_address = 0;
-	char *end;
+static struct option opts[] = {{"help", 0, 0, 'h'},
+                               {"version", 0, 0, 'V'},
+                               {"check", 1, 0, 'c'},
+                               {"add", 1, 0, 'a'},
+                               {"delete", 1, 0, 'D'},
+                               {"stellaris-address", 1, 0, 's'},
+                               {"stellaris", 0, 0, 'T'},
+                               {"LPC", 0, 0, 'L'},
+                               {0, 0, 0, 0}};
+int main(int argc, char **argv) {
+  struct dfu_file file;
+  enum mode mode = MODE_NONE;
+  enum prefix_type type = ZERO_PREFIX;
+  uint32_t lmdfu_flash_address = 0;
+  char *end;
 
-	/* make sure all prints are flushed */
-	setvbuf(stdout, NULL, _IONBF, 0);
+  /* make sure all prints are flushed */
+  setvbuf(stdout, NULL, _IONBF, 0);
 
-	print_version();
+  print_version();
 
-	memset(&file, 0, sizeof(file));
+  memset(&file, 0, sizeof(file));
 
-	while (1) {
-		int c, option_index = 0;
-		c = getopt_long(argc, argv, "hVc:a:D:p:v:d:s:TL", opts,
-				&option_index);
-		if (c == -1)
-			break;
+  while (1) {
+    int c, option_index = 0;
+    c = getopt_long(argc, argv, "hVc:a:D:p:v:d:s:TL", opts, &option_index);
+    if (c == -1)
+      break;
 
-		switch (c) {
-		case 'h':
-			help();
-			exit(EX_OK);
-			break;
-		case 'V':
-			exit(EX_OK);
-			break;
-		case 'D':
-			file.name = optarg;
-			mode = MODE_DEL;
-			break;
-		case 'c':
-			file.name = optarg;
-			mode = MODE_CHECK;
-			break;
-		case 'a':
-			file.name = optarg;
-			mode = MODE_ADD;
-			break;
-		case 's':
-			lmdfu_flash_address = strtoul(optarg, &end, 0);
-			if (*end) {
-				errx(EX_USAGE, "Invalid lmdfu "
-					"address: %s", optarg);
-			}
-			/* fall-through */
-		case 'T':
-			type = LMDFU_PREFIX;
-			break;
-		case 'L':
-			type = LPCDFU_UNENCRYPTED_PREFIX;
-			break;
-		default:
-			help();
-			exit(EX_USAGE);
-			break;
-		}
-	}
+    switch (c) {
+    case 'h':
+      help();
+      exit(EX_OK);
+      break;
+    case 'V':
+      exit(EX_OK);
+      break;
+    case 'D':
+      file.name = optarg;
+      mode = MODE_DEL;
+      break;
+    case 'c':
+      file.name = optarg;
+      mode = MODE_CHECK;
+      break;
+    case 'a':
+      file.name = optarg;
+      mode = MODE_ADD;
+      break;
+    case 's':
+      lmdfu_flash_address = strtoul(optarg, &end, 0);
+      if (*end) {
+        errx(EX_USAGE,
+             "Invalid lmdfu "
+             "address: %s",
+             optarg);
+      }
+      /* fall-through */
+    case 'T':
+      type = LMDFU_PREFIX;
+      break;
+    case 'L':
+      type = LPCDFU_UNENCRYPTED_PREFIX;
+      break;
+    default:
+      help();
+      exit(EX_USAGE);
+      break;
+    }
+  }
 
-	if (!file.name) {
-		fprintf(stderr, "You need to specify a filename\n");
-		help();
-		exit(EX_USAGE);
-	}
+  if (!file.name) {
+    fprintf(stderr, "You need to specify a filename\n");
+    help();
+    exit(EX_USAGE);
+  }
 
-	switch(mode) {
-	case MODE_ADD:
-		if (type == ZERO_PREFIX)
-			errx(EX_USAGE, "Prefix type must be specified");
-		dfu_load_file(&file, MAYBE_SUFFIX, NO_PREFIX);
-		file.lmdfu_address = lmdfu_flash_address;
-		file.prefix_type = type;
-		printf("Adding prefix to file\n");
-		dfu_store_file(&file, file.size.suffix != 0, 1);
-		break;
+  switch (mode) {
+  case MODE_ADD:
+    if (type == ZERO_PREFIX)
+      errx(EX_USAGE, "Prefix type must be specified");
+    dfu_load_file(&file, MAYBE_SUFFIX, NO_PREFIX);
+    file.lmdfu_address = lmdfu_flash_address;
+    file.prefix_type = type;
+    printf("Adding prefix to file\n");
+    dfu_store_file(&file, file.size.suffix != 0, 1);
+    break;
 
-	case MODE_CHECK:
-		dfu_load_file(&file, MAYBE_SUFFIX, MAYBE_PREFIX);
-		show_suffix_and_prefix(&file);
-		if (type > ZERO_PREFIX && file.prefix_type != type)
-			errx(EX_DATAERR, "No prefix of requested type");
-		break;
+  case MODE_CHECK:
+    dfu_load_file(&file, MAYBE_SUFFIX, MAYBE_PREFIX);
+    show_suffix_and_prefix(&file);
+    if (type > ZERO_PREFIX && file.prefix_type != type)
+      errx(EX_DATAERR, "No prefix of requested type");
+    break;
 
-	case MODE_DEL:
-		dfu_load_file(&file, MAYBE_SUFFIX, NEEDS_PREFIX);
-		if (type > ZERO_PREFIX && file.prefix_type != type)
-			errx(EX_DATAERR, "No prefix of requested type");
-		printf("Removing prefix from file\n");
-		/* if there was a suffix, rewrite it */
-		dfu_store_file(&file, file.size.suffix != 0, 0);
-		break;
+  case MODE_DEL:
+    dfu_load_file(&file, MAYBE_SUFFIX, NEEDS_PREFIX);
+    if (type > ZERO_PREFIX && file.prefix_type != type)
+      errx(EX_DATAERR, "No prefix of requested type");
+    printf("Removing prefix from file\n");
+    /* if there was a suffix, rewrite it */
+    dfu_store_file(&file, file.size.suffix != 0, 0);
+    break;
 
-	default:
-		help();
-		exit(EX_USAGE);
-		break;
-	}
-	return EX_OK;
+  default:
+    help();
+    exit(EX_USAGE);
+    break;
+  }
+  return EX_OK;
 }
